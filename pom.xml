@@ -1,0 +1,143 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+	<parent>
+		<groupId>org.springframework.boot</groupId>
+		<artifactId>spring-boot-starter-parent</artifactId>
+		<version>2.3.3.RELEASE</version>
+		<relativePath/> <!-- lookup parent from repository -->
+	</parent>
+
+	<groupId>com.gft.stocks</groupId>
+	<artifactId>parent</artifactId>
+	<version>0.0.1-SNAPSHOT</version>
+	<packaging>pom</packaging>
+
+	<name>stocks</name>
+	<description>Exercise project using Java/Spring/H2</description>
+
+	<properties>
+		<java.version>11</java.version>
+		<docker.plugin.version>0.33.0</docker.plugin.version>
+	</properties>
+
+	<modules>
+		<module>backend</module>
+	</modules>
+
+	<build>
+		<plugins>
+			<plugin>
+				<groupId>io.fabric8</groupId>
+				<artifactId>docker-maven-plugin</artifactId>
+				<version>${docker.plugin.version}</version>
+				<configuration>
+					<useColor>true</useColor>
+					<startParallel>true</startParallel>
+					<autoCreateCustomNetworks>true</autoCreateCustomNetworks>
+					<containerNamePattern>%a</containerNamePattern>
+					<images>
+						<image>
+							<alias>backend</alias>
+							<name>${project.groupId}.backend:%l</name>
+							<run>
+								<ports>
+									<port>8080:8080</port>
+								</ports>
+								<wait>
+									<http>
+										<url>http://localhost:8080/actuator/health</url>
+									</http>
+									<time>500000</time>
+								</wait>
+								<network>
+									<mode>custom</mode>
+									<name>stocks-network</name>
+									<alias>backend</alias>
+								</network>
+							</run>
+						</image>
+						<image>
+							<alias>frontend</alias>
+							<name>${project.groupId}.frontend:%l</name>
+							<build>
+								<from>node:14.9.0</from>
+								<assembly>
+									<inline>
+										<fileSet>
+											<directory>frontend/build</directory>
+											<outputDirectory>frontend</outputDirectory>
+										</fileSet>
+									</inline>
+								</assembly>
+								<workdir>
+									/maven/frontend
+								</workdir>
+								<ports>
+									<port>5000</port>
+								</ports>
+								<entryPoint>
+									<shell>yarn global add serve; serve -s .</shell>
+								</entryPoint>
+							</build>
+							<run>
+								<ports>
+									<port>80:5000</port>
+								</ports>
+								<wait>
+									<http>
+										<url>http://localhost</url>
+									</http>
+									<time>500000</time>
+								</wait>
+								<network>
+									<mode>custom</mode>
+									<name>stocks-network</name>
+									<alias>frontend</alias>
+								</network>
+								<dependsOn>
+									<container>backend</container>
+								</dependsOn>
+							</run>
+						</image>
+					</images>
+				</configuration>
+				<executions>
+					<execution>
+						<id>docker-remove</id>
+						<phase>clean</phase>
+						<goals>
+							<goal>remove</goal>
+						</goals>
+					</execution>
+				</executions>
+			</plugin>
+			<plugin>
+				<groupId>org.codehaus.mojo</groupId>
+				<artifactId>exec-maven-plugin</artifactId>
+				<version>1.6.0</version>
+				<executions>
+					<execution>
+						<id>build-frontend</id>
+						<phase>package</phase>
+						<goals>
+							<goal>exec</goal>
+						</goals>
+						<configuration>
+							<workingDirectory>frontend</workingDirectory>
+							<executable>yarn</executable>
+							<arguments>
+								<argument>build</argument>
+							</arguments>
+						</configuration>
+					</execution>
+
+				</executions>
+				<dependencies>
+				</dependencies>
+			</plugin>
+		</plugins>
+	</build>
+
+</project>
